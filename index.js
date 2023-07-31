@@ -1,40 +1,32 @@
 import express from 'express';
 import { Telegraf } from 'telegraf';
 import 'dotenv/config';
-import transcriptAudio from './helpers/transcriptAudio.js';
 
-//Configure express app
+import voiceResponse from './commands/voise_response.js';
+import startCommandResponse from './commands/start_command_response.js';
+import textResponse from './commands/text_response.js';
+
+//Configure express app and telegram bot
 const app = express();
-app.use(express.json());
-app.use(express.static('static'));
-
 const bot = new Telegraf(process.env.TELEGRAM_API_KEY);
-const PORT = process.env.PORT || 3000;
 
+//Exporess routes
 app.get('/', (_, res) => {
   res.status(200).send({ message: 'success' });
 });
 
-bot.command('start', (ctx) => {
-  bot.telegram.sendMessage(ctx.chat.id, 'The command start doesnt do anything actually');
-});
+//Bot routes
+bot.command('start', startCommandResponse);
+bot.on('text', textResponse);
+bot.on('voice', voiceResponse);
 
-bot.on('text', (ctx) => {
-  bot.telegram.sendMessage(ctx.chat.id, 'Unfortunatelly I cannot response for text messages yet');
-});
-
-bot.on('voice', async (ctx) => {
-  try {
-    bot.telegram.sendMessage(ctx.chat.id, 'Processing your voice message...');
-
-    const voiceUrl = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
-    const transcriptedText = await transcriptAudio(voiceUrl.href);
-
-    bot.telegram.sendMessage(ctx.chat.id, 'The transcripted result: \n' + transcriptedText.text);
-  } catch (error) {
-    console.log(error);
-  }
-});
-
-bot.launch();
+//Launch server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server started on port ' + PORT));
+
+//Launch bot
+bot.launch();
+
+// Enable graceful stop
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
